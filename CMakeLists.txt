@@ -27,6 +27,7 @@ qt_add_executable(plan-and-track
     models/planmodel.h models/planmodel.cpp
     models/taskmodel.h models/taskmodel.cpp
     resources.qrc
+    photosurface.rc
 )
 
 target_link_libraries(plan-and-track
