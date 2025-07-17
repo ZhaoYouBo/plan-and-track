@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/assets">
+        <file>resources/DarkPurple.qss</file>
+        <file>resources/icon.ico</file>
+    </qresource>
+</RCC>
