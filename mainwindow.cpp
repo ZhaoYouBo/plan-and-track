@@ -45,7 +45,7 @@ MainWindow::MainWindow(QWidget *parent)
     createThemeMenu();
     QDir configDir("Config");
     if(!configDir.exists()) {
-        configDir.mkdir(".");
+        QDir().mkdir("Config");
     }
     QSettings settings("Config/config.ini", QSettings::IniFormat);
     QString lastTheme = settings.value("theme").toString();
