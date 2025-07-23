@@ -64,8 +64,10 @@ MainWindow::MainWindow(QWidget *parent)
     }
 
     if (!found && !themeGroup->actions().isEmpty()) {
-        themeGroup->actions().first()->setChecked(true);
-        changeTheme(themeGroup->actions().first()->text());
+        const QList<QAction*> &actions = themeGroup->actions();
+        QAction *firstAction = actions.first();
+        firstAction->setChecked(true);
+        changeTheme(firstAction->text());
     }
 }
 
@@ -123,7 +125,7 @@ void MainWindow::init()
     ui->comboBox_task->setCurrentText("进行中");
     ui->comboBox_habit->setCurrentText("进行中");
 
-    ui->calendarWidget->clicked(QDate::currentDate());
+    emit ui->calendarWidget->clicked(QDate::currentDate());
 
     adjustTableWidth(ui->tableView_plan);
     adjustTableWidth(ui->tableView_task);
@@ -831,7 +833,8 @@ void MainWindow::onChartHovered(const QPointF &point, bool state)
             return;
         }
 
-        QLineSeries *series = qobject_cast<QLineSeries*>(chart->series().first());
+        QList<QAbstractSeries*> seriesList = chart->series();
+        QLineSeries *series = qobject_cast<QLineSeries*>(seriesList.first());
         if (!series) {
             return;
         }
