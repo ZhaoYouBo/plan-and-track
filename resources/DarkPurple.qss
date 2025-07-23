@@ -23,7 +23,7 @@ QLineEdit, QTextEdit, QPlainTextEdit
 
 QTextEdit {
 	background-color:rgb(42, 42, 42);
-	color: rgb(0, 255, 0);
+	color: rgba(12, 237, 50, 1);
 }
 
 QLineEdit

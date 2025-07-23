@@ -44,27 +44,6 @@
           </property>
          </spacer>
         </item>
-        <item>
-         <widget class="QPushButton" name="pushButton_delete">
-          <property name="text">
-           <string>删除</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="pushButton_insert">
-          <property name="text">
-           <string>新增</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="pushButton_savePlan">
-          <property name="text">
-           <string>保存</string>
-          </property>
-         </widget>
-        </item>
        </layout>
       </item>
       <item>
@@ -204,13 +183,6 @@
           </item>
          </widget>
         </item>
-        <item>
-         <widget class="QPushButton" name="pushButton_saveSummary">
-          <property name="text">
-           <string>保存</string>
-          </property>
-         </widget>
-        </item>
        </layout>
       </item>
       <item>
@@ -247,13 +219,6 @@
           <item>
            <widget class="QComboBox" name="comboBox_task"/>
           </item>
-          <item>
-           <widget class="QPushButton" name="pushButton_add_task">
-            <property name="text">
-             <string>增加任务</string>
-            </property>
-           </widget>
-          </item>
          </layout>
         </item>
         <item>
@@ -288,13 +253,6 @@
           <item>
            <widget class="QComboBox" name="comboBox_habit"/>
           </item>
-          <item>
-           <widget class="QPushButton" name="pushButton_add_habit">
-            <property name="text">
-             <string>增加习惯</string>
-            </property>
-           </widget>
-          </item>
          </layout>
         </item>
         <item>
@@ -322,8 +280,68 @@
      <height>20</height>
     </rect>
    </property>
+   <widget class="QMenu" name="menu_document">
+    <property name="title">
+     <string>文件</string>
+    </property>
+    <addaction name="action_save"/>
+   </widget>
+   <widget class="QMenu" name="menu_theme">
+    <property name="title">
+     <string>主题</string>
+    </property>
+   </widget>
+   <widget class="QMenu" name="menu_task">
+    <property name="title">
+     <string>任务</string>
+    </property>
+    <addaction name="action_addTask"/>
+   </widget>
+   <widget class="QMenu" name="menu_habit">
+    <property name="title">
+     <string>习惯</string>
+    </property>
+    <addaction name="action_addHabit"/>
+   </widget>
+   <widget class="QMenu" name="menu_plan">
+    <property name="title">
+     <string>计划</string>
+    </property>
+    <addaction name="action_deletePlan"/>
+    <addaction name="action_addPlan"/>
+   </widget>
+   <addaction name="menu_document"/>
+   <addaction name="menu_theme"/>
+   <addaction name="menu_task"/>
+   <addaction name="menu_habit"/>
+   <addaction name="menu_plan"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
+  <action name="action_save">
+   <property name="text">
+    <string>保存</string>
+   </property>
+  </action>
+  <action name="action_addTask">
+   <property name="text">
+    <string>新增任务</string>
+   </property>
+  </action>
+  <action name="action_addHabit">
+   <property name="text">
+    <string>新增习惯</string>
+   </property>
+  </action>
+  <action name="action_deletePlan">
+   <property name="text">
+    <string>删除计划</string>
+   </property>
+  </action>
+  <action name="action_addPlan">
+   <property name="text">
+    <string>新增计划</string>
+   </property>
+  </action>
  </widget>
  <resources/>
  <connections/>

@@ -108,6 +108,11 @@ void MainWindow::init()
 
     connect(m_modelTask, &TaskModel::dataChanged, this, &MainWindow::onTableViewTaskDataChanged);
     connect(m_modelHabit, &HabitModel::dataChanged, this, &MainWindow::onTableViewHabitDataChanged);
+    connect(ui->action_save, &QAction::triggered, this, &MainWindow::saveData);
+    connect(ui->action_addTask, &QAction::triggered, this, &MainWindow::addTask);
+    connect(ui->action_addHabit, &QAction::triggered, this, &MainWindow::addHabit);
+    connect(ui->action_deletePlan, &QAction::triggered, this, &MainWindow::deletePlan);
+    connect(ui->action_addPlan, &QAction::triggered, this, &MainWindow::insertPlan);
 
     QStringList taskStatuses = Utils::taskStatusList();
     taskStatuses.insert(0, "全部");
@@ -199,8 +204,6 @@ void MainWindow::initChart()
 
 void MainWindow::createThemeMenu()
 {
-    QMenu *themeMenu = menuBar()->addMenu(tr("主题"));
-
     themeGroup = new QActionGroup(this);
 
     QDir qssDir(":/assets/resources/");
@@ -213,7 +216,7 @@ void MainWindow::createThemeMenu()
         QAction *action = new QAction(theme, this);
         action->setCheckable(true);
         themeGroup->addAction(action);
-        themeMenu->addAction(action);
+        ui->menu_theme->addAction(action);
         connect(action, &QAction::triggered, this, [this, theme]() {
             this->changeTheme(theme);
         });
@@ -289,9 +292,8 @@ void MainWindow::saveData()
             continue;
         }
     }
-
-    QString reflection = ui->textEdit_reflection->toPlainText();
-    QString summary = ui->textEdit_summary->toPlainText();
+    QString reflection = ui->textEdit_reflection->toHtml();
+    QString summary = ui->textEdit_summary->toHtml();
 
     QString currentText = ui->comboBox_type->currentText();
 
@@ -349,7 +351,7 @@ void MainWindow::adjustTableWidth(QTableView *tableView)
 }
 
 
-void MainWindow::on_pushButton_add_task_clicked()
+void MainWindow::addTask()
 {
     AddTaskDialog dialog(this);
 
@@ -476,7 +478,7 @@ void MainWindow::on_comboBox_task_currentIndexChanged(int index)
 }
 
 
-void MainWindow::on_pushButton_add_habit_clicked()
+void MainWindow::addHabit()
 {
     AddHabitDialog dialog(this);
 
@@ -635,7 +637,7 @@ void MainWindow::on_calendarWidget_clicked(const QDate &date)
     ReviewData reviewData;
     reviewData = m_dbManager.getReviewByDate(currentText, startPeriodDate, endPeriodDate);
     if (!reviewData.reflection.isEmpty()) {
-        ui->textEdit_reflection->setText(reviewData.reflection);
+        ui->textEdit_reflection->setHtml(reviewData.reflection);
     }
     else {
         ReviewData data;
@@ -655,11 +657,11 @@ void MainWindow::on_calendarWidget_clicked(const QDate &date)
             data.reflection += item.reflection + "\n";
         }
         if (!data.reflection.isEmpty()) {
-            ui->textEdit_reflection->setText(data.reflection.trimmed());
+            ui->textEdit_reflection->setHtml(data.reflection.trimmed());
         }
     }
     if (!reviewData.summary.isEmpty()) {
-        ui->textEdit_summary->setText(reviewData.summary);
+        ui->textEdit_summary->setHtml(reviewData.summary);
     }
     else {
         ReviewData data;
@@ -679,7 +681,7 @@ void MainWindow::on_calendarWidget_clicked(const QDate &date)
             data.summary += item.summary + "\n";
         }
         if (!data.summary.isEmpty()) {
-            ui->textEdit_summary->setText(data.summary.trimmed());
+            ui->textEdit_summary->setHtml(data.summary.trimmed());
         }
     }
 
@@ -778,19 +780,8 @@ void MainWindow::on_calendarWidget_clicked(const QDate &date)
     }
 }
 
-void MainWindow::on_pushButton_savePlan_clicked()
-{
-    saveData();
-}
 
-
-void MainWindow::on_pushButton_saveSummary_clicked()
-{
-    saveData();
-}
-
-
-void MainWindow::on_pushButton_delete_clicked()
+void MainWindow::deletePlan()
 {
     QTableView *tableView = ui->tableView_plan;
     QAbstractItemModel *model = tableView->model();
@@ -814,7 +805,7 @@ void MainWindow::on_pushButton_delete_clicked()
 }
 
 
-void MainWindow::on_pushButton_insert_clicked()
+void MainWindow::insertPlan()
 {
     QTableView *tableView = ui->tableView_plan;
     QStandardItemModel *model = qobject_cast<QStandardItemModel*>(tableView->model());

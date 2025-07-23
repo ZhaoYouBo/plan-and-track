@@ -28,25 +28,14 @@ public:
 
     bool eventFilter(QObject *obj, QEvent *event);
 private slots:
-    void on_pushButton_add_task_clicked();
     void onTableViewTaskDataChanged(const QModelIndex &topLeft, const QModelIndex &bottomRight, const QVector<int> &roles);
     void onTableViewHabitDataChanged(const QModelIndex &topLeft, const QModelIndex &bottomRight, const QVector<int> &roles);
 
     void on_comboBox_task_currentIndexChanged(int index);
 
-    void on_pushButton_add_habit_clicked();
-
     void on_comboBox_habit_currentIndexChanged(int index);
 
     void on_calendarWidget_clicked(const QDate &date);
-
-    void on_pushButton_savePlan_clicked();
-
-    void on_pushButton_saveSummary_clicked();
-
-    void on_pushButton_delete_clicked();
-
-    void on_pushButton_insert_clicked();
 
 private slots:
     void onChartHovered(const QPointF &point, bool state);
@@ -61,12 +50,16 @@ private:
     PlanModel* m_modelPlan;
     QChartView *m_chartViewPlan;
     QToolTip *m_tooltip;
-    QActionGroup *themeGroup; // 主题分组，便于同步菜单选中项
+    QActionGroup *themeGroup;
     void init();
     void initChart();
     void saveData();
     void adjustTableWidth(QTableView *tableView);
     void createThemeMenu();
     void changeTheme(const QString &themeName);
+    void addTask();
+    void addHabit();
+    void deletePlan();
+    void insertPlan();
 };
 #endif // MAINWINDOW_H
