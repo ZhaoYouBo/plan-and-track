@@ -52,18 +52,6 @@ void Database::createTables()
         "CHECK ( (task_id IS NOT NULL AND habit_id IS NULL) OR (task_id IS NULL AND habit_id IS NOT NULL) )"
         ")"
         );
-
-    query.exec(
-        "CREATE TABLE IF NOT EXISTS daily_review ("
-        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
-        "type TEXT, "
-        "review_date DATE NOT NULL, "
-        "period_start DATE, "
-        "period_end DATE, "
-        "reflection TEXT, "
-        "summary TEXT"
-        ")"
-        );
 }
 
 QList<TaskData> Database::getTaskByStatus(int status)
@@ -198,90 +186,6 @@ QMap<QDate, double> Database::getPlanNumberByDate(const QDate &startDate, const 
     }
 
     return resultData;
-}
-
-ReviewData Database::getReviewByDate(const QString& type, const QDate& startDate, const QDate& endDate)
-{
-    ReviewData reviewData;
-
-    QSqlQuery query("SELECT reflection, summary "
-                    "FROM daily_review "
-                    "WHERE type = ? and period_start = ? and period_end = ?;");
-    query.addBindValue(type);
-    query.addBindValue(startDate);
-    query.addBindValue(endDate);
-
-    if (!query.exec() || !query.next()) {
-        return reviewData;
-    }
-
-    reviewData.reflection = query.value(0).toString();
-    reviewData.summary = query.value(1).toString();
-
-    return reviewData;
-}
-
-QList<ReviewData> Database::getReviewByType(const QString &type, const QDate &startDate, const QDate &endDate)
-{
-    QList<ReviewData> reviewData;
-    QString searchType;
-    QSqlQuery query;
-
-    if(type == "日总结") {
-        return reviewData;
-    }
-    else if (type == "周总结") {
-        searchType = "日总结";
-        query.prepare("SELECT reflection, summary "
-                      "FROM daily_review "
-                      "WHERE type = ? and period_start >= ? and period_end <= ?;");
-        query.addBindValue(searchType);
-        query.addBindValue(startDate);
-        query.addBindValue(endDate);
-    }
-    else if (type == "月总结") {
-        searchType = "周总结";
-        query.prepare("SELECT reflection, summary "
-                      "FROM daily_review "
-                      "WHERE type = ? and period_start >= ? and period_end <= ?;");
-        query.addBindValue(searchType);
-        query.addBindValue(startDate);
-        query.addBindValue(endDate);
-    }
-    else if (type == "年中总结") {
-        searchType = "月总结";
-        query.prepare("SELECT reflection, summary "
-                      "FROM daily_review "
-                      "WHERE type = ? and period_start >= ? and period_end <= ?;");
-        query.addBindValue(searchType);
-        query.addBindValue(startDate);
-        query.addBindValue(endDate);
-    }
-    else if (type == "年终总结") {
-        searchType = "年中总结";
-        query.prepare("SELECT reflection, summary "
-                      "FROM daily_review "
-                      "WHERE (type = ? and period_start >= ? and period_end <= ?) "
-                      "or (type = '月总结' and period_start >= ? and period_end <= ?);");
-        query.addBindValue(searchType);
-        query.addBindValue(startDate);
-        query.addBindValue(endDate);
-        query.addBindValue(QDate(endDate.year(), 7, 1));
-        query.addBindValue(QDate(endDate.year(), 12, 31));
-    }
-
-    if (!query.exec()) {
-        return reviewData;
-    }
-
-    while (query.next()) {
-        ReviewData data;
-        data.reflection = query.value(0).toString();
-        data.summary = query.value(1).toString();
-        reviewData.append(data);
-    }
-
-    return reviewData;
 }
 
 void Database::addTask(TaskData data)
@@ -493,84 +397,6 @@ void Database::updateTaskPlan(int index, QString name, int status, int taskId, Q
 
     if (!query.exec())
     {
-    }
-}
-
-void Database::updateReview(const QString& reflection, const QString& summary, const QDate& date, const QString& type)
-{
-    QDate startPeriodDate = date;
-    QDate endPeriodDate = date;
-
-    if (type == "周总结")
-    {
-        startPeriodDate = date.addDays(-date.dayOfWeek() + 1);
-        endPeriodDate = startPeriodDate.addDays(6);
-    }
-    else if (type == "月总结")
-    {
-        startPeriodDate = date.addDays(-date.day() + 1);
-        endPeriodDate = startPeriodDate.addMonths(1).addDays(-1);
-    }
-    else if (type == "年中总结")
-    {
-        startPeriodDate = QDate(date.year(), 1, 1);
-        endPeriodDate = QDate(date.year(), 6, 30);
-    }
-    else if (type == "年终总结")
-    {
-        startPeriodDate = QDate(date.year(), 1, 1);
-        endPeriodDate = QDate(date.year(), 12, 31);
-    }
-    QSqlQuery query;
-    query.prepare("UPDATE daily_review "
-                  "SET reflection = ?, summary = ?, review_date = ? "
-                  "WHERE type = ? and period_start = ? and period_end = ?");
-    query.addBindValue(reflection);
-    query.addBindValue(summary);
-    query.addBindValue(date);
-    query.addBindValue(type);
-    query.addBindValue(startPeriodDate);
-    query.addBindValue(endPeriodDate);
-    if (!query.exec())
-    {
-        qDebug() << "更新总结失败:" << query.lastError().text();
-        return;
-    }
-
-    if (query.numRowsAffected() == 0)
-    {
-        query.prepare("INSERT INTO daily_review (review_date, reflection, summary, type, period_start, period_end) "
-                      "VALUES (?, ?, ?, ?, ?, ?)");
-        query.addBindValue(date);
-        query.addBindValue(reflection);
-        query.addBindValue(summary);
-        query.addBindValue(type);
-        query.addBindValue(startPeriodDate);
-        query.addBindValue(endPeriodDate);
-
-        if (!query.exec())
-        {
-            qDebug() << "插入总结失败:" << query.lastError().text();
-        }
-    }
-}
-
-void Database::updateHabitStatusByTimes(const HabitData &habit)
-{
-    QSqlQuery habitQuery;
-    bool shouldComplete = false;
-    int maxTimes;
-    maxTimes = getHabitMaxTimes(habit);
-    if (maxTimes >= 30) {
-        shouldComplete = true;
-    }
-    if (shouldComplete)
-    {
-        habitQuery.prepare("UPDATE habits "
-                           "SET status = 1 "
-                           "WHERE name = ? and status = 0");
-        habitQuery.addBindValue(habit.name);
-        habitQuery.exec();
     }
 }
 

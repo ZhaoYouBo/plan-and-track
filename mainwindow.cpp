@@ -27,6 +27,9 @@
 #include <QDir>
 #include <QFileInfoList>
 #include <QSettings>
+#include <QBarSet>
+#include <QBarSeries>
+#include <QBarCategoryAxis>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -40,7 +43,8 @@ MainWindow::MainWindow(QWidget *parent)
 
     this->setWindowTitle("计划管理软件");
     this->setWindowIcon(QIcon(":/assets/resource/icon.ico"));
-    initChart();
+    initChartTask();
+    initChartHabit();
     init();
     createThemeMenu();
     QDir configDir("Config");
@@ -83,7 +87,7 @@ void MainWindow::init()
     m_modelPlan = new PlanModel(this);
 
     m_modelTask->setHorizontalHeaderLabels({"ID", "任务名称", "创建日期", "截止日期", "完成日期", "完成状态"});
-    m_modelHabit->setHorizontalHeaderLabels({"ID", "习惯名称", "创建日期", "习惯频率", "总次数", "连续次数", "完成状态"});
+    m_modelHabit->setHorizontalHeaderLabels({"ID", "习惯名称", "创建日期", "习惯频率", "完成状态"});
     m_modelPlan->setHorizontalHeaderLabels({"类型", "计划名称", "完成状态"});
 
     ui->tableView_task->setModel(m_modelTask);
@@ -137,12 +141,9 @@ void MainWindow::init()
 
     ui->tableView_habit->setColumnHidden(0, true);
     ui->tableView_task->setColumnHidden(0, true);
-
-    ui->dateEdit_period_start->setDate(QDate::currentDate());
-    ui->dateEdit_period_end->setDate(QDate::currentDate());
 }
 
-void MainWindow::initChart()
+void MainWindow::initChartTask()
 {
     m_chartViewPlan = new QChartView(this);
     m_chartViewPlan->setRenderHint(QPainter::Antialiasing);
@@ -201,6 +202,78 @@ void MainWindow::initChart()
     m_chartViewPlan->setChart(chart);
 
     ui->horizontalLayout->insertWidget(1, m_chartViewPlan);
+}
+
+void MainWindow::initChartHabit()
+{
+    m_chartViewHabit = new QChartView(this);
+    m_chartViewHabit->setRenderHint(QPainter::Antialiasing);
+
+    QList<HabitData> habitDataList = m_dbManager.getHabitByStatus(1);
+
+    QChart *chart = new QChart();
+    chart->setTitle("习惯完成情况");
+
+    if (!habitDataList.empty())
+    {
+        QBarSet *set1 = new QBarSet("总次数");
+        QBarSet *set2 = new QBarSet("连续次数");
+
+        set1->setLabelColor(Qt::black);
+        set2->setLabelColor(Qt::black);
+
+        QStringList categories;
+
+        int maxValue = 0; // 用于记录最大值
+
+        for (const HabitData &habit : habitDataList)
+        {
+            int maxTimes = m_dbManager.getHabitMaxTimes(habit);
+            int allTimes = m_dbManager.getHabitTimes(habit);
+
+            *set1 << allTimes;
+            *set2 << maxTimes;
+            categories << habit.name;
+
+            // 更新最大值
+            maxValue = qMax(maxValue, qMax(maxTimes, allTimes));
+        }
+
+        QBarSeries *series = new QBarSeries();
+        series->append(set1);
+        series->append(set2);
+
+        // 设置标签可见，并显示在柱子上方
+        series->setLabelsVisible(true);
+        series->setLabelsPosition(QAbstractBarSeries::LabelsOutsideEnd); // 标签显示在柱子的外部顶端
+
+        chart->addSeries(series);
+
+        QBarCategoryAxis *axisX = new QBarCategoryAxis();
+        axisX->append(categories);
+        axisX->setTitleText("习惯名称");
+
+        QValueAxis *axisY = new QValueAxis();
+        axisY->setLabelFormat("%.0f");
+        axisY->setTitleText("次数");
+        axisY->setTickCount(6);
+        axisY->setRange(0, maxValue + 10); // 设置Y轴范围上限为最大值+10
+
+        chart->createDefaultAxes();
+        chart->setAxisX(axisX, series);
+        chart->setAxisY(axisY, series);
+
+        chart->legend()->setVisible(true);
+        chart->legend()->setAlignment(Qt::AlignRight);
+    }
+    else
+    {
+        chart->addSeries(new QBarSeries());
+        chart->setTitle("暂无数据");
+    }
+
+    m_chartViewHabit->setChart(chart);
+    ui->horizontalLayout_4->insertWidget(1, m_chartViewHabit);
 }
 
 
@@ -294,12 +367,6 @@ void MainWindow::saveData()
             continue;
         }
     }
-    QString reflection = ui->textEdit_reflection->toHtml();
-    QString summary = ui->textEdit_summary->toHtml();
-
-    QString currentText = ui->comboBox_type->currentText();
-
-    m_dbManager.updateReview(reflection, summary, selectedDate, currentText);
     on_calendarWidget_clicked(ui->calendarWidget->selectedDate());
 
     on_comboBox_habit_currentIndexChanged(1);
@@ -505,14 +572,10 @@ void MainWindow::on_comboBox_habit_currentIndexChanged(int index)
 
     for (const HabitData &habitData : std::as_const(habitDataList)) {
         QList<QStandardItem*> items;
-        int maxTimes = m_dbManager.getHabitMaxTimes(habitData);
-        int allTimes = m_dbManager.getHabitTimes(habitData);
         items.append(new QStandardItem(QString::number(habitData.id)));
         items.append(new QStandardItem(habitData.name));
         items.append(new QStandardItem(habitData.createdDate.toString("yyyy年MM月dd日")));
         items.append(new QStandardItem(habitData.target_frequency));
-        items.append(new QStandardItem(QString::number(allTimes)));
-        items.append(new QStandardItem(QString::number(maxTimes)));
         items.append(new QStandardItem(Utils::habitStatusToString(habitData.status)));
 
         for (int i = 0; i < items.size(); ++i) {
@@ -607,88 +670,6 @@ void MainWindow::on_calendarWidget_clicked(const QDate &date)
         m_modelPlan->appendRow(items);
     }
 
-    QString currentText = ui->comboBox_type->currentText();
-    ui->textEdit_reflection->clear();
-    ui->textEdit_summary->clear();
-    QDate startPeriodDate = date;
-    QDate endPeriodDate = date;
-
-    if (currentText == "周总结")
-    {
-        startPeriodDate = date.addDays(-date.dayOfWeek() + 1);
-        endPeriodDate = startPeriodDate.addDays(6);
-    }
-    else if (currentText == "月总结")
-    {
-        startPeriodDate = date.addDays(-date.day() + 1);
-        endPeriodDate = startPeriodDate.addMonths(1).addDays(-1);
-    }
-    else if (currentText == "年中总结")
-    {
-        startPeriodDate = QDate(date.year(), 1, 1);
-        endPeriodDate = QDate(date.year(), 6, 30);
-    }
-    else if (currentText == "年终总结")
-    {
-        startPeriodDate = QDate(date.year(), 1, 1);
-        endPeriodDate = QDate(date.year(), 12, 31);
-    }
-
-    ui->dateEdit_period_start->setDate(startPeriodDate);
-    ui->dateEdit_period_end->setDate(endPeriodDate);
-    ReviewData reviewData;
-    reviewData = m_dbManager.getReviewByDate(currentText, startPeriodDate, endPeriodDate);
-    if (!reviewData.reflection.isEmpty()) {
-        ui->textEdit_reflection->setHtml(reviewData.reflection);
-    }
-    else {
-        ReviewData data;
-        if (currentText == "月总结") {
-            QDate weekStart = startPeriodDate.addDays(-startPeriodDate.dayOfWeek() + 1);
-            if (weekStart < startPeriodDate && startPeriodDate.dayOfWeek() <= 4) {
-                startPeriodDate = weekStart;
-            }
-
-            QDate weekEnd = endPeriodDate.addDays(7 - endPeriodDate.dayOfWeek());
-            if (weekEnd > endPeriodDate && endPeriodDate.dayOfWeek() > 4) {
-                endPeriodDate = weekEnd;
-            }
-        }
-        QList<ReviewData> listData = m_dbManager.getReviewByType(currentText, startPeriodDate, endPeriodDate);
-        for (const ReviewData &item : std::as_const(listData)) {
-            data.reflection += item.reflection + "\n";
-        }
-        if (!data.reflection.isEmpty()) {
-            ui->textEdit_reflection->setHtml(data.reflection.trimmed());
-        }
-    }
-    if (!reviewData.summary.isEmpty()) {
-        ui->textEdit_summary->setHtml(reviewData.summary);
-    }
-    else {
-        ReviewData data;
-        if (currentText == "月总结") {
-            QDate weekStart = startPeriodDate.addDays(-startPeriodDate.dayOfWeek() + 1);
-            if (weekStart < startPeriodDate && startPeriodDate.dayOfWeek() <= 4) {
-                startPeriodDate = weekStart;
-            }
-
-            QDate weekEnd = endPeriodDate.addDays(7 - endPeriodDate.dayOfWeek());
-            if (weekEnd > endPeriodDate && endPeriodDate.dayOfWeek() > 4) {
-                endPeriodDate = weekEnd;
-            }
-        }
-        QList<ReviewData> listData = m_dbManager.getReviewByType(currentText, startPeriodDate, endPeriodDate);
-        for (const ReviewData &item : std::as_const(listData)) {
-            data.summary += item.summary + "\n";
-        }
-        if (!data.summary.isEmpty()) {
-            ui->textEdit_summary->setHtml(data.summary.trimmed());
-        }
-    }
-
-
-
     if (!needAdd)
     {
         return;
@@ -777,8 +758,6 @@ void MainWindow::on_calendarWidget_clicked(const QDate &date)
 
             m_modelPlan->appendRow(items);
         }
-
-        m_dbManager.updateHabitStatusByTimes(habit);
     }
 }
 

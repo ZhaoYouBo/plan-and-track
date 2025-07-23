@@ -49,10 +49,12 @@ private:
     HabitModel* m_modelHabit;
     PlanModel* m_modelPlan;
     QChartView *m_chartViewPlan;
+    QChartView *m_chartViewHabit;
     QToolTip *m_tooltip;
     QActionGroup *themeGroup;
     void init();
-    void initChart();
+    void initChartTask();
+    void initChartHabit();
     void saveData();
     void adjustTableWidth(QTableView *tableView);
     void createThemeMenu();
