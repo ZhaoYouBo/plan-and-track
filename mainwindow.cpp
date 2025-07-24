@@ -107,7 +107,7 @@ void MainWindow::init()
     ui->tableView_task->setItemDelegateForColumn(5, new TaskStatusDelegate(ui->tableView_task));
     ui->tableView_habit->setItemDelegateForColumn(2, new DateDelegate(ui->tableView_habit));
     ui->tableView_habit->setItemDelegateForColumn(3, new HabitFrequencyDelegate(ui->tableView_habit));
-    ui->tableView_habit->setItemDelegateForColumn(6, new HabitStatusDelegate(ui->tableView_habit));
+    ui->tableView_habit->setItemDelegateForColumn(4, new HabitStatusDelegate(ui->tableView_habit));
     PlanNameDelegate *planNameDelegate = new PlanNameDelegate(&m_dbManager, ui->tableView_plan, this);
     ui->tableView_plan->setItemDelegateForColumn(1, planNameDelegate);
     ui->tableView_plan->setItemDelegateForColumn(2, new PlanStatusDelegate(ui->tableView_plan));
@@ -206,72 +206,18 @@ void MainWindow::initChartTask()
 
 void MainWindow::initChartHabit()
 {
+    // 创建图表视图
     m_chartViewHabit = new QChartView(this);
     m_chartViewHabit->setRenderHint(QPainter::Antialiasing);
 
+    // 获取数据并创建图表
     QList<HabitData> habitDataList = m_dbManager.getHabitByStatus(1);
-
     QChart *chart = new QChart();
-    chart->setTitle("习惯完成情况");
 
-    if (!habitDataList.empty())
-    {
-        QBarSet *set1 = new QBarSet("总次数");
-        QBarSet *set2 = new QBarSet("连续次数");
+    // 使用公共方法刷新图表
+    refreshHabitChart(chart, habitDataList);
 
-        set1->setLabelColor(Qt::black);
-        set2->setLabelColor(Qt::black);
-
-        QStringList categories;
-
-        int maxValue = 0; // 用于记录最大值
-
-        for (const HabitData &habit : habitDataList)
-        {
-            int maxTimes = m_dbManager.getHabitMaxTimes(habit);
-            int allTimes = m_dbManager.getHabitTimes(habit);
-
-            *set1 << allTimes;
-            *set2 << maxTimes;
-            categories << habit.name;
-
-            // 更新最大值
-            maxValue = qMax(maxValue, qMax(maxTimes, allTimes));
-        }
-
-        QBarSeries *series = new QBarSeries();
-        series->append(set1);
-        series->append(set2);
-
-        // 设置标签可见，并显示在柱子上方
-        series->setLabelsVisible(true);
-        series->setLabelsPosition(QAbstractBarSeries::LabelsOutsideEnd); // 标签显示在柱子的外部顶端
-
-        chart->addSeries(series);
-
-        QBarCategoryAxis *axisX = new QBarCategoryAxis();
-        axisX->append(categories);
-        axisX->setTitleText("习惯名称");
-
-        QValueAxis *axisY = new QValueAxis();
-        axisY->setLabelFormat("%.0f");
-        axisY->setTitleText("次数");
-        axisY->setTickCount(6);
-        axisY->setRange(0, maxValue + 10); // 设置Y轴范围上限为最大值+10
-
-        chart->createDefaultAxes();
-        chart->setAxisX(axisX, series);
-        chart->setAxisY(axisY, series);
-
-        chart->legend()->setVisible(true);
-        chart->legend()->setAlignment(Qt::AlignRight);
-    }
-    else
-    {
-        chart->addSeries(new QBarSeries());
-        chart->setTitle("暂无数据");
-    }
-
+    // 设置图表到视图并添加到布局
     m_chartViewHabit->setChart(chart);
     ui->horizontalLayout_4->insertWidget(1, m_chartViewHabit);
 }
@@ -514,6 +460,7 @@ void MainWindow::onTableViewHabitDataChanged(const QModelIndex &topLeft, const Q
         break;
     }
     on_comboBox_habit_currentIndexChanged(ui->comboBox_task->currentIndex());
+    updateChartHabit();
 }
 
 void MainWindow::on_comboBox_task_currentIndexChanged(int index)
@@ -592,65 +539,8 @@ void MainWindow::on_comboBox_habit_currentIndexChanged(int index)
 
 void MainWindow::on_calendarWidget_clicked(const QDate &date)
 {
-    QChart *chart = m_chartViewPlan->chart();
-    chart->removeAllSeries();
-
-    QDate startDate = date.addDays(-13);
-    QMap<QDate, double> resultDate = m_dbManager.getPlanNumberByDate(startDate, date);
-
-    QDateTimeAxis *axisX = nullptr;
-    QValueAxis *axisY = nullptr;
-
-    foreach (QAbstractAxis* ax, chart->axes(Qt::Horizontal)) {
-        axisX = qobject_cast<QDateTimeAxis*>(ax);
-    }
-    foreach (QAbstractAxis* ay, chart->axes(Qt::Vertical)) {
-        axisY = qobject_cast<QValueAxis*>(ay);
-    }
-
-    if (!axisX) {
-        axisX = new QDateTimeAxis();
-        chart->addAxis(axisX, Qt::AlignBottom);
-    }
-    if (!axisY) {
-        axisY = new QValueAxis();
-        chart->addAxis(axisY, Qt::AlignLeft);
-    }
-
-    axisX->setFormat("MM-dd");
-    axisX->setTitleText("日期");
-    axisX->setTickCount(16);
-    axisX->setRange(QDateTime(date.addDays(-14), QTime(0,0,0)), QDateTime(date.addDays(1), QTime(0,0,0)));
-
-    axisY->setLabelFormat("%.0f%");
-    axisY->setTitleText("完成率");
-    axisY->setTickCount(6);
-    axisY->setRange(0, 100);
-
-    chart->removeAllSeries();
-
-    if (!resultDate.empty()) {
-        QLineSeries *series = new QLineSeries();
-        for (auto it = resultDate.begin(); it != resultDate.end(); ++it) {
-            series->append(QDateTime(it.key(), QTime(0,0,0)).toMSecsSinceEpoch(), qRound(it.value() * 100));
-        }
-
-        series->setPointsVisible(true);
-        series->setPointLabelsVisible(false);
-
-        connect(series, &QLineSeries::hovered, this, &MainWindow::onChartHovered);
-
-        chart->addSeries(series);
-        series->attachAxis(axisX);
-        series->attachAxis(axisY);
-        chart->setTitle("任务完成情况");
-    } else {
-        chart->addSeries(new QLineSeries());
-        chart->setTitle("暂无数据");
-    }
-
-    chart->legend()->hide();
-
+    updateChartTask(date);
+    updateChartHabit();
     m_modelPlan->removeRows(0, m_modelPlan->rowCount());
 
     QList<PlanData> planDataList;
@@ -802,6 +692,172 @@ void MainWindow::insertPlan()
     items.append(new QStandardItem("进行中"));
 
     model->appendRow(items);
+}
+
+void MainWindow::refreshHabitChart(QChart *chart, const QList<HabitData> &habitDataList)
+{
+    // 清除现有的系列和坐标轴
+    chart->removeAllSeries();
+
+    // 删除所有现有坐标轴
+    QList<QAbstractAxis*> axes = chart->axes();
+    for (QAbstractAxis *axis : axes) {
+        chart->removeAxis(axis);
+        delete axis;
+    }
+
+    if (!habitDataList.empty())
+    {
+        // 创建数据集
+        QBarSet *set1 = new QBarSet("总次数");
+        QBarSet *set2 = new QBarSet("连续次数");
+
+        set1->setLabelColor(Qt::black);
+        set2->setLabelColor(Qt::black);
+
+        QStringList categories;
+        int maxValue = 0;
+
+        // 填充数据
+        for (const HabitData &habit : habitDataList)
+        {
+            int maxTimes = m_dbManager.getHabitMaxTimes(habit);
+            int allTimes = m_dbManager.getHabitTimes(habit);
+
+            *set1 << allTimes;
+            *set2 << maxTimes;
+            categories << habit.name;
+
+            maxValue = qMax(maxValue, qMax(maxTimes, allTimes));
+        }
+
+        // 创建系列
+        QBarSeries *series = new QBarSeries();
+        series->append(set1);
+        series->append(set2);
+        series->setLabelsVisible(true);
+        series->setLabelsPosition(QAbstractBarSeries::LabelsOutsideEnd);
+
+        chart->addSeries(series);
+
+        // 创建坐标轴
+        QBarCategoryAxis *axisX = new QBarCategoryAxis();
+        axisX->append(categories);
+        axisX->setTitleText("习惯名称");
+
+        // 计算纵坐标上限值
+        int upperBound;
+        if (maxValue == 0) {
+            // 如果maxValue是0，则上限设为10（因为0是整十数，0+10=10）
+            upperBound = 10;
+        } else if (maxValue % 10 == 0) {
+            // 如果maxValue是整十数，则上限为maxValue + 10
+            upperBound = maxValue + 10;
+        } else {
+            // 如果maxValue不是整十数，则向上取整到最近的整十数
+            upperBound = (maxValue / 10 + 1) * 10;
+        }
+
+        QValueAxis *axisY = new QValueAxis();
+        axisY->setLabelFormat("%.0f");
+        axisY->setTitleText("次数");
+        axisY->setTickCount(6);
+        axisY->setRange(0, upperBound);  // 使用计算得到的上限值
+
+        // 添加坐标轴并关联系列
+        chart->addAxis(axisX, Qt::AlignBottom);
+        chart->addAxis(axisY, Qt::AlignLeft);
+        series->attachAxis(axisX);
+        series->attachAxis(axisY);
+
+        // 设置图表样式
+        chart->setTitle("习惯完成情况");
+        chart->legend()->setVisible(true);
+        chart->legend()->setAlignment(Qt::AlignRight);
+    }
+    else
+    {
+        // 空数据处理
+        QBarSeries *emptySeries = new QBarSeries();
+        QBarSet *emptySet = new QBarSet("无数据");
+        emptySeries->append(emptySet);
+        chart->addSeries(emptySeries);
+
+        chart->setTitle("暂无数据");
+        chart->legend()->setVisible(false);
+    }
+}
+
+void MainWindow::updateChartTask(const QDate &date)
+{
+    QChart *chartPlan = m_chartViewPlan->chart();
+    chartPlan->removeAllSeries();
+
+    QDate startDate = date.addDays(-13);
+    QMap<QDate, double> resultDate = m_dbManager.getPlanNumberByDate(startDate, date);
+
+    QDateTimeAxis *axisX = nullptr;
+    QValueAxis *axisY = nullptr;
+
+    foreach (QAbstractAxis* ax, chartPlan->axes(Qt::Horizontal)) {
+        axisX = qobject_cast<QDateTimeAxis*>(ax);
+    }
+    foreach (QAbstractAxis* ay, chartPlan->axes(Qt::Vertical)) {
+        axisY = qobject_cast<QValueAxis*>(ay);
+    }
+
+    if (!axisX) {
+        axisX = new QDateTimeAxis();
+        chartPlan->addAxis(axisX, Qt::AlignBottom);
+    }
+    if (!axisY) {
+        axisY = new QValueAxis();
+        chartPlan->addAxis(axisY, Qt::AlignLeft);
+    }
+
+    axisX->setFormat("MM-dd");
+    axisX->setTitleText("日期");
+    axisX->setTickCount(16);
+    axisX->setRange(QDateTime(date.addDays(-14), QTime(0,0,0)), QDateTime(date.addDays(1), QTime(0,0,0)));
+
+    axisY->setLabelFormat("%.0f%");
+    axisY->setTitleText("完成率");
+    axisY->setTickCount(6);
+    axisY->setRange(0, 100);
+
+    chartPlan->removeAllSeries();
+
+    if (!resultDate.empty()) {
+        QLineSeries *series = new QLineSeries();
+        for (auto it = resultDate.begin(); it != resultDate.end(); ++it) {
+            series->append(QDateTime(it.key(), QTime(0,0,0)).toMSecsSinceEpoch(), qRound(it.value() * 100));
+        }
+
+        series->setPointsVisible(true);
+        series->setPointLabelsVisible(false);
+
+        connect(series, &QLineSeries::hovered, this, &MainWindow::onChartHovered);
+
+        chartPlan->addSeries(series);
+        series->attachAxis(axisX);
+        series->attachAxis(axisY);
+        chartPlan->setTitle("任务完成情况");
+    } else {
+        chartPlan->addSeries(new QLineSeries());
+        chartPlan->setTitle("暂无数据");
+    }
+
+    chartPlan->legend()->hide();
+}
+
+void MainWindow::updateChartHabit()
+{
+    // 获取现有图表和最新数据
+    QChart *chart = m_chartViewHabit->chart();
+    QList<HabitData> habitDataList = m_dbManager.getHabitByStatus(1);
+
+    // 使用公共方法刷新图表
+    refreshHabitChart(chart, habitDataList);
 }
 
 void MainWindow::onChartHovered(const QPointF &point, bool state)

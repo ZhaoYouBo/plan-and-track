@@ -63,5 +63,8 @@ private:
     void addHabit();
     void deletePlan();
     void insertPlan();
+    void refreshHabitChart(QChart *chart, const QList<HabitData>& habitDataList);
+    void updateChartTask(const QDate &date);
+    void updateChartHabit();
 };
 #endif // MAINWINDOW_H
