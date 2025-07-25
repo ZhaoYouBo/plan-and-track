@@ -168,8 +168,8 @@
     <property name="title">
      <string>计划</string>
     </property>
-    <addaction name="action_deletePlan"/>
     <addaction name="action_addPlan"/>
+    <addaction name="action_deletePlan"/>
    </widget>
    <addaction name="menu_document"/>
    <addaction name="menu_theme"/>
